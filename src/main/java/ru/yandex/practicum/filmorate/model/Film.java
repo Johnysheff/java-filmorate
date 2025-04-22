@@ -15,6 +15,7 @@ public class Film {
     @Size(max = 200, message = "Описание фильма не может превышать 200 символов.")
     private String description;
 
+    @PastOrPresent
     @NotNull(message = "Дата релиза должна быть указана.")
     private LocalDate releaseDate;
 
