@@ -4,8 +4,10 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.Genre;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Repository
 public class GenreDbStorage implements GenreStorage {
@@ -39,7 +41,12 @@ public class GenreDbStorage implements GenreStorage {
     @Override
     public void addGenresToFilm(long filmId, List<Genre> genres) {
         String sql = "INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)";
-        genres.forEach(genre -> jdbcTemplate.update(sql, filmId, genre.getId()));
+
+        List<Object[]> batchArgs = genres.stream()
+                .map(genre -> new Object[]{filmId, genre.getId()})
+                .collect(Collectors.toList());
+
+        jdbcTemplate.batchUpdate(sql, batchArgs);
     }
 
     @Override
@@ -49,5 +56,19 @@ public class GenreDbStorage implements GenreStorage {
                         new Genre(rs.getInt("genre_id"), rs.getString("name")),
                 filmId
         );
+    }
+
+    @Override
+    public List<Genre> getGenresByIds(List<Integer> ids) {
+        if (!ids.isEmpty()) {
+            String sql = "SELECT genre_id, name FROM genres WHERE genre_id IN (:ids)";
+            String result = ids.stream().map(String::valueOf).collect(Collectors.joining(", "));
+            sql = sql.replace(":ids", result);
+            return jdbcTemplate.query(sql, (rs, rowNum) ->
+                    new Genre(rs.getInt("genre_id"), rs.getString("name"))
+            );
+        } else {
+            return new ArrayList<>();
+        }
     }
 }

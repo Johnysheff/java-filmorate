@@ -2,37 +2,40 @@ package ru.yandex.practicum.filmorate.storage.user;
 
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.simple.SimpleJdbcInsert;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.User;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.Date;
+import java.sql.*;
 import java.util.*;
 
 @Repository
 
 public class UserDbStorage implements UserStorage {
     private final JdbcTemplate jdbcTemplate;
-    private SimpleJdbcInsert simpleJdbcInsert;
+
 
     public UserDbStorage(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-        this.simpleJdbcInsert = new SimpleJdbcInsert(jdbcTemplate)
-                .withTableName("users")
-                .usingGeneratedKeyColumns("user_id");
     }
 
     @Override
     public User addUser(User user) {
-        Map<String, Object> parameters = new HashMap<>();
-        parameters.put("email", user.getEmail());
-        parameters.put("login", user.getLogin());
-        parameters.put("name", user.getName());
-        parameters.put("birthday", user.getBirthday());
+        String sql = "INSERT INTO users (email, login, name, birthday) VALUES (?, ?, ?, ?)";
+        KeyHolder keyHolder = new GeneratedKeyHolder();
 
-        Number newId = simpleJdbcInsert.executeAndReturnKey(parameters);
-        user.setId(newId.intValue());
+        jdbcTemplate.update(connection -> {
+            PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            stmt.setString(1, user.getEmail());
+            stmt.setString(2, user.getLogin());
+            stmt.setString(3, user.getName());
+            stmt.setDate(4, Date.valueOf(user.getBirthday()));
+            return stmt;
+        }, keyHolder);
+
+        user.setId(keyHolder.getKey().intValue());
         return user;
     }
 
@@ -64,10 +67,36 @@ public class UserDbStorage implements UserStorage {
 
     @Override
     public List<User> getAllUsers() {
-        String sql = "SELECT * FROM users";
-        List<User> users = jdbcTemplate.query(sql, this::mapRowToUser);
-        users.forEach(this::loadFriends);
-        return users;
+        String sql = """
+                SELECT u.user_id as user_id, u.name, f.friend_id
+                FROM users u
+                LEFT JOIN friendships f ON u.user_id = f.user_id
+                """;
+
+        Map<Integer, User> usersMap = new HashMap<>();
+
+        jdbcTemplate.query(sql, rs -> {
+            int userId = rs.getInt("user_id");
+
+            User user = usersMap.computeIfAbsent(userId, id -> {
+                User newUser = new User();
+                newUser.setId(id);
+                try {
+                    newUser.setName(rs.getString("name"));
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+                newUser.setFriends(new HashSet<>());
+                return newUser;
+            });
+
+            int friendId = rs.getInt("friend_id");
+            if (friendId != 0 && !usersMap.containsKey(friendId)) {
+                user.getFriends().add((long) friendId);
+            }
+        });
+
+        return new ArrayList<>(usersMap.values());
     }
 
     @Override
