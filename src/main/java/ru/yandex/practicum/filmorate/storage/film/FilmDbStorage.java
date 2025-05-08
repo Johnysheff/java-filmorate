@@ -20,6 +20,9 @@ import java.util.stream.Collectors;
 public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbcTemplate;
 
+    private static final String GET_FILM_IDS_BY_USER_ID_QUERY = "SELECT film_id FROM FILM_LIKES WHERE user_id = ?";
+
+    private static final String GET_USER_IDS_BY_FILM_ID_QUERY = "SELECT user_id FROM FILM_LIKES  WHERE film_id = ?";
 
     public FilmDbStorage(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
@@ -237,5 +240,13 @@ public class FilmDbStorage implements FilmStorage {
             genres.computeIfAbsent(filmId, k -> new ArrayList<>()).add(genre);
         });
         return genres;
+    }
+
+    public List<Integer> getFilmIdsByUserId(Integer userId) {
+        return jdbcTemplate.queryForList(GET_FILM_IDS_BY_USER_ID_QUERY, new Object[]{userId}, Integer.class);
+    }
+
+    public List<Integer> getUserIdsByFilmId(Integer filmId) {
+        return jdbcTemplate.queryForList(GET_USER_IDS_BY_FILM_ID_QUERY, new Object[]{filmId}, Integer.class);
     }
 }
