@@ -20,6 +20,9 @@ import java.util.stream.Collectors;
 public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbcTemplate;
 
+    private static final String DELETE_FILM_QUERY = """
+            DELETE FROM FILMS
+            WHERE film_id = ?""";
 
     public FilmDbStorage(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
@@ -111,6 +114,11 @@ public class FilmDbStorage implements FilmStorage {
         } catch (Exception e) {
             return Optional.empty();
         }
+    }
+
+    @Override
+    public void deleteFilm(Film film) {
+        jdbcTemplate.update(DELETE_FILM_QUERY, film.getId());
     }
 
     @Override

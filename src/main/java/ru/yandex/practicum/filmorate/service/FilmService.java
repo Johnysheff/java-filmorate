@@ -65,6 +65,13 @@ public class FilmService {
                 new NotFoundException("Фильм с id " + id + " не найден"));
     }
 
+    public Film deleteFilm(Integer filmId) {
+        Film deletedFilm = filmStorage.getFilmById(filmId)
+                .orElseThrow(() -> new NotFoundException("Фильм с id " + filmId + " не найден"));
+        filmStorage.deleteFilm(deletedFilm);
+        return deletedFilm;
+    }
+
     public void addLike(int filmId, int userId) {
         Optional<Film> foundedFilm = filmStorage.getFilmById(filmId);
         if (foundedFilm.isEmpty()) {
