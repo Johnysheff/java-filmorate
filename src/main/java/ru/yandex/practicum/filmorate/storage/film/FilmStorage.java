@@ -27,5 +27,5 @@ public interface FilmStorage {
 
     List<Film> getCommonFilms(int userId, int userId2);
 
-    Map<Integer, List<Genre>> getAllGenres (Collection<Film> films);
+    Map<Integer, List<Genre>> getAllGenres(Collection<Film> films);
 }

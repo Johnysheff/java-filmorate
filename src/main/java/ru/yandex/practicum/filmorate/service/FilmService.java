@@ -95,9 +95,9 @@ public class FilmService {
         return filmStorage.getPopularFilmsWithFilters(count, genreId, year);
     }
 
-    public List<Film> getCommonFilms(int userId1, int userId2){
+    public List<Film> getCommonFilms(int userId1, int userId2) {
         List<Film> films = filmStorage.getCommonFilms(userId1, userId2);
-        if (films.isEmpty()){
+        if (films.isEmpty()) {
             return films;
         }
         Map<Integer, List<Genre>> filmGenres = filmStorage.getAllGenres(films);

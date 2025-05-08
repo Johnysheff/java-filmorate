@@ -208,7 +208,7 @@ public class FilmDbStorage implements FilmStorage {
         return jdbcTemplate.query(query, new FilmRowMapper(), userId1, userId2);
     }
 
-    public Map<Integer, List<Genre>> getAllGenres (Collection<Film> films){
+    public Map<Integer, List<Genre>> getAllGenres(Collection<Film> films) {
         Map<Integer, List<Genre>> genres = new HashMap<>();
 
         List<Integer> filmIds = films.stream()
