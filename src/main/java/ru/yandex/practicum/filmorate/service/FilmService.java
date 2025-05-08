@@ -16,10 +16,7 @@ import ru.yandex.practicum.filmorate.storage.mpa.MpaStorage;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.time.LocalDate;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -96,6 +93,19 @@ public class FilmService {
 
     public List<Film> getPopularFilms(int count, Integer genreId, Integer year) {
         return filmStorage.getPopularFilmsWithFilters(count, genreId, year);
+    }
+
+    public List<Film> getCommonFilms(int userId1, int userId2) {
+        List<Film> films = filmStorage.getCommonFilms(userId1, userId2);
+        if (films.isEmpty()) {
+            return films;
+        }
+        Map<Integer, List<Genre>> filmGenres = filmStorage.getAllGenres(films);
+        films.forEach(film -> {
+            int filmId = film.getId();
+            film.setGenres(filmGenres.getOrDefault(filmId, new ArrayList<>()));
+        });
+        return films;
     }
 
     private void validateFilm(Film film) {

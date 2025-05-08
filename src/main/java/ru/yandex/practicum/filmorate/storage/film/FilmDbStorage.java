@@ -7,13 +7,13 @@ import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.model.MpaRating;
+import ru.yandex.practicum.filmorate.storage.mappers.FilmRowMapper;
 
 import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Repository
 
@@ -116,7 +116,7 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public List<Film> getAllFilms() {
         String sql = "SELECT f.*, m.name AS mpa_name, m.description AS mpa_description " +
-                     "FROM films f JOIN mpa_ratings m ON f.mpa_id = m.mpa_id";
+                "FROM films f JOIN mpa_ratings m ON f.mpa_id = m.mpa_id";
         return jdbcTemplate.query(sql, (rs, rowNum) -> {
             Film film = new Film(
                     rs.getString("name"),
@@ -193,5 +193,49 @@ public class FilmDbStorage implements FilmStorage {
             ));
             return film;
         }, count);
+    }
+
+    public List<Film> getCommonFilms(int userId1, int userId2) {
+        String query = """
+                SELECT f.*
+                FROM FILMS f
+                JOIN film_likes fl1 ON f.film_id = fl1.film_id AND fl1.user_id = ?
+                JOIN film_likes fl2 ON f.film_id = fl2.film_id AND fl2.user_id = ?
+                LEFT JOIN film_likes fl_likes ON f.film_id = fl_likes.film_id
+                GROUP BY f.film_id
+                ORDER BY COUNT(fl_likes.user_id) DESC
+                """;
+        return jdbcTemplate.query(query, new FilmRowMapper(), userId1, userId2);
+    }
+
+    public Map<Integer, List<Genre>> getAllGenres(Collection<Film> films) {
+        Map<Integer, List<Genre>> genres = new HashMap<>();
+
+        List<Integer> filmIds = films.stream()
+                .map(Film::getId)
+                .toList();
+
+        String inSql = filmIds.stream()
+                .map(id -> "?")
+                .collect(Collectors.joining(", "));
+
+        String query = String.format("""
+                SELECT fg.film_id, g.genre_id, g.name
+                FROM film_genres fg
+                JOIN genres g ON g.genre_id = fg.genre_id
+                WHERE fg.film_id IN (%s)
+                """, inSql);
+
+        jdbcTemplate.query(query, filmIds.toArray(), rs -> {
+            int filmId = rs.getInt("film_id");
+
+            Genre genre = Genre.builder()
+                    .id(rs.getInt("film_id"))
+                    .name(rs.getString("name"))
+                    .build();
+
+            genres.computeIfAbsent(filmId, k -> new ArrayList<>()).add(genre);
+        });
+        return genres;
     }
 }
