@@ -94,8 +94,8 @@ public class FilmService {
         log.info("Пользователь {} удалил лайк у фильма {}", userId, filmId);
     }
 
-    public List<Film> getPopularFilms(int count) {
-        return filmStorage.getPopularFilms(count);
+    public List<Film> getPopularFilms(int count, Integer genreId, Integer year) {
+        return filmStorage.getPopularFilmsWithFilters(count, genreId, year);
     }
 
     private void validateFilm(Film film) {

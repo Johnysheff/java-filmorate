@@ -116,7 +116,7 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public List<Film> getAllFilms() {
         String sql = "SELECT f.*, m.name AS mpa_name, m.description AS mpa_description " +
-                "FROM films f JOIN mpa_ratings m ON f.mpa_id = m.mpa_id";
+                     "FROM films f JOIN mpa_ratings m ON f.mpa_id = m.mpa_id";
         return jdbcTemplate.query(sql, (rs, rowNum) -> {
             Film film = new Film(
                     rs.getString("name"),
@@ -149,13 +149,36 @@ public class FilmDbStorage implements FilmStorage {
 
     @Override
     public List<Film> getPopularFilms(int count) {
-        String sql = "SELECT f.*, m.name AS mpa_name, m.description AS mpa_description, " +
-                "COUNT(fl.user_id) AS likes_count " +
-                "FROM films f LEFT JOIN film_likes fl ON f.film_id = fl.film_id " +
-                "JOIN mpa_ratings m ON f.mpa_id = m.mpa_id " +
-                "GROUP BY f.film_id ORDER BY likes_count DESC LIMIT ?";
+        return getPopularFilmsWithFilters(count, null, null);
+    }
 
-        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+    public List<Film> getPopularFilmsWithFilters(int count, Integer genreId, Integer year) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT f.*, m.name AS mpa_name, m.description AS mpa_description,
+                COUNT(fl.user_id) AS likes_count
+                FROM films f
+                LEFT JOIN film_likes fl ON f.film_id = fl.film_id
+                JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
+                """);
+
+        boolean hasWhere = false;
+
+        if (genreId != null || year != null) {
+            sql.append(" WHERE ");
+            if (genreId != null) {
+                sql.append("EXISTS (SELECT 1 FROM film_genres fg WHERE fg.film_id = f.film_id AND fg.genre_id = ").append(genreId).append(")");
+                hasWhere = true;
+            }
+            if (year != null) {
+                if (hasWhere) {
+                    sql.append(" AND ");
+                }
+                sql.append("EXTRACT(YEAR FROM f.release_date) = ").append(year);
+            }
+        }
+
+        sql.append(" GROUP BY f.film_id ORDER BY likes_count DESC LIMIT ?");
+        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> {
             Film film = new Film(
                     rs.getString("name"),
                     rs.getString("description"),
@@ -168,7 +191,6 @@ public class FilmDbStorage implements FilmStorage {
                     rs.getString("mpa_name"),
                     rs.getString("mpa_description")
             ));
-
             return film;
         }, count);
     }
