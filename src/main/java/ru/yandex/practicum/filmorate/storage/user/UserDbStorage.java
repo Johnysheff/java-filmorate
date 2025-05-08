@@ -16,6 +16,10 @@ import java.util.*;
 public class UserDbStorage implements UserStorage {
     private final JdbcTemplate jdbcTemplate;
 
+    private static final String DELETE_USER_QUERY = """
+            DELETE FROM USERS
+            WHERE user_id = ?
+            """;
 
     public UserDbStorage(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
@@ -63,6 +67,11 @@ public class UserDbStorage implements UserStorage {
         } catch (EmptyResultDataAccessException e) {
             return Optional.empty();
         }
+    }
+
+    @Override
+    public void deleteUser(User user) {
+        jdbcTemplate.update(DELETE_USER_QUERY, user.getId());
     }
 
     @Override
