@@ -46,6 +46,13 @@ public class UserService {
                 new NotFoundException("Пользователь с id " + id + " не найден"));
     }
 
+    public User deleteUser(Integer userId) {
+        User deletedUser = userStorage.getUserById(userId)
+                .orElseThrow(() -> new NotFoundException("Пользователь с id " + userId + " не найден"));
+        userStorage.deleteUser(deletedUser);
+        return deletedUser;
+    }
+
     public void addFriend(int userId, int friendId) {
         Optional<User> foundedUser = userStorage.getUserById(userId);
         if (foundedUser.isEmpty()) {

@@ -24,6 +24,10 @@ public class FilmDbStorage implements FilmStorage {
 
     private static final String GET_USER_IDS_BY_FILM_ID_QUERY = "SELECT user_id FROM FILM_LIKES  WHERE film_id = ?";
 
+    private static final String DELETE_FILM_QUERY = """
+            DELETE FROM FILMS
+            WHERE film_id = ?""";
+
     public FilmDbStorage(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
 
@@ -114,6 +118,11 @@ public class FilmDbStorage implements FilmStorage {
         } catch (Exception e) {
             return Optional.empty();
         }
+    }
+
+    @Override
+    public void deleteFilm(Film film) {
+        jdbcTemplate.update(DELETE_FILM_QUERY, film.getId());
     }
 
     @Override
