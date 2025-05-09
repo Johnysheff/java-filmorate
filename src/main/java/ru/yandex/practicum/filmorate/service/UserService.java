@@ -4,9 +4,12 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -14,10 +17,12 @@ import java.util.Optional;
 @Slf4j
 public class UserService {
     private final UserStorage userStorage;
+    private final RecommendationService recommendationService;
 
     @Autowired
-    public UserService(UserStorage userStorage) {
+    public UserService(UserStorage userStorage, RecommendationService recommendationService) {
         this.userStorage = userStorage;
+        this.recommendationService = recommendationService;
     }
 
     public User addUser(User user) {
@@ -84,5 +89,10 @@ public class UserService {
 
     public List<User> getCommonFriends(int userId, int otherId) {
         return userStorage.getCommonFriends(userId, otherId);
+    }
+
+    public Collection<Film> getRecommendations(Integer userId) {
+        Collection<Film> films = recommendationService.getRecommendations(userId);
+        return new ArrayList<>(films);
     }
 }
