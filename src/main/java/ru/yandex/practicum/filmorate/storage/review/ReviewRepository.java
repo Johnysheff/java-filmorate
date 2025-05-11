@@ -105,9 +105,9 @@ public class ReviewRepository {
         jdbc.update(sql, reviewId, userId);
     }
 
-    public void removeReaction(int review_id, int userId) {
+    public void removeReaction(int reviewId, int userId) {
         String sql = "DELETE FROM review_likes WHERE review_id = ? AND user_id = ?";
-        jdbc.update(sql, review_id, userId);
+        jdbc.update(sql, reviewId, userId);
     }
 
     public void updateReviewUseful(int reviewId) {
