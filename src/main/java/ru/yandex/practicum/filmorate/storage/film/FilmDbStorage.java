@@ -9,24 +9,31 @@ import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.model.MpaRating;
 import ru.yandex.practicum.filmorate.storage.director.DirectorStorage;
+import ru.yandex.practicum.filmorate.storage.genre.GenreStorage;
 import ru.yandex.practicum.filmorate.storage.mappers.FilmRowMapper;
+import ru.yandex.practicum.filmorate.storage.mpa.MpaStorage;
 
 import java.sql.Date;
 import java.sql.*;
+import java.time.LocalDate;
 import java.util.*;
 
 @Repository
 public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbcTemplate;
     private final DirectorStorage directorStorage;
+    private final MpaStorage mpaStorage;
+    private final GenreStorage genreStorage;
 
     private static final String GET_FILM_IDS_BY_USER_ID_QUERY = "SELECT film_id FROM FILM_LIKES WHERE user_id = ?";
     private static final String GET_USER_IDS_BY_FILM_ID_QUERY = "SELECT user_id FROM FILM_LIKES WHERE film_id = ?";
     private static final String DELETE_FILM_QUERY = "DELETE FROM FILMS WHERE film_id = ?";
 
-    public FilmDbStorage(JdbcTemplate jdbcTemplate, DirectorStorage directorStorage) {
+    public FilmDbStorage(JdbcTemplate jdbcTemplate, DirectorStorage directorStorage, MpaStorage mpaStorage, GenreStorage genreStorage) {
         this.jdbcTemplate = jdbcTemplate;
         this.directorStorage = directorStorage;
+        this.mpaStorage = mpaStorage;
+        this.genreStorage = genreStorage;
     }
 
     @Override
@@ -320,5 +327,90 @@ public class FilmDbStorage implements FilmStorage {
                 rs.getString("mpa_description")
         ));
         return film;
+    }
+
+    public List<Film> searchFilmsByDirector(String directorName) {
+        String sql =
+                "SELECT f.* " +
+                        "FROM films f " +
+                        "JOIN film_directors fd ON f.film_id = fd.film_id " +
+                        "JOIN directors d ON fd.director_id = d.director_id " +
+                        "WHERE LOWER(d.name) LIKE LOWER(?)";
+
+        String searchPattern = "%" + directorName + "%";
+
+        return jdbcTemplate.query(sql, new Object[]{searchPattern}, (rs, rowNum) -> {
+            int filmId = rs.getInt("film_id");
+            String name = rs.getString("name");
+            String description = rs.getString("description");
+            LocalDate releaseDate = rs.getDate("release_date").toLocalDate();
+            int duration = rs.getInt("duration");
+            int mpaId = rs.getInt("mpa_id");
+
+            Optional<MpaRating> optionalMpa = mpaStorage.getMpaRatingById(mpaId);
+            MpaRating mpa = optionalMpa.orElse(null);
+
+            List<Genre> genres = genreStorage.getGenresByFilmId(filmId);
+            List<Director> directors = directorStorage.getDirectorsByFilmId(filmId);
+
+            return new Film(filmId, name, description, releaseDate, duration, mpa, genres, directors);
+        });
+    }
+
+    public List<Film> searchFilmsByTitle(String title) {
+        String sql =
+                "SELECT f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id " +
+                        "FROM films f " +
+                        "WHERE LOWER(f.name) LIKE LOWER(?)";
+
+        String searchPattern = "%" + title + "%";
+
+        return jdbcTemplate.query(sql, new Object[]{searchPattern}, (rs, rowNum) -> {
+            int filmId = rs.getInt("film_id");
+            String filmName = rs.getString("name");
+            String description = rs.getString("description");
+            LocalDate releaseDate = rs.getDate("release_date").toLocalDate();
+            int duration = rs.getInt("duration");
+            int mpaId = rs.getInt("mpa_id");
+
+            Optional<MpaRating> optionalMpa = mpaStorage.getMpaRatingById(mpaId);
+            MpaRating mpa = optionalMpa.orElse(null);
+
+            List<Genre> genres = genreStorage.getGenresByFilmId(filmId);
+            List<Director> directors = directorStorage.getDirectorsByFilmId(filmId);
+
+            return new Film(filmId, filmName, description, releaseDate, duration, mpa, genres, directors);
+        });
+    }
+
+    public List<Film> searchFilmsByTitleAndDirector(String title, String directorName) {
+        String sql =
+                "SELECT f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id " +
+                        "FROM films f " +
+                        "LEFT JOIN film_directors fd ON f.film_id = fd.film_id " +
+                        "LEFT JOIN directors d ON fd.director_id = d.director_id " +
+                        "WHERE " +
+                        "LOWER(f.name) LIKE LOWER(?) " +
+                        "OR LOWER(d.name) LIKE LOWER(?)";
+
+        String titlePattern = "%" + title + "%";
+        String directorPattern = "%" + directorName + "%";
+
+        return jdbcTemplate.query(sql, new Object[]{titlePattern, directorPattern}, (rs, rowNum) -> {
+            int filmId = rs.getInt("film_id");
+            String filmName = rs.getString("name");
+            String description = rs.getString("description");
+            LocalDate releaseDate = rs.getDate("release_date").toLocalDate();
+            int duration = rs.getInt("duration");
+            int mpaId = rs.getInt("mpa_id");
+
+            Optional<MpaRating> optionalMpa = mpaStorage.getMpaRatingById(mpaId);
+            MpaRating mpa = optionalMpa.orElse(null);
+
+            List<Genre> genres = genreStorage.getGenresByFilmId(filmId);
+            List<Director> directors = directorStorage.getDirectorsByFilmId(filmId);
+
+            return new Film(filmId, filmName, description, releaseDate, duration, mpa, genres, directors);
+        });
     }
 }
