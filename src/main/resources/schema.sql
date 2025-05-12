@@ -1,3 +1,5 @@
+DROP TABLE IF EXISTS review_likes;
+DROP TABLE IF EXISTS reviews;
 DROP TABLE IF EXISTS film_genres;
 DROP TABLE IF EXISTS film_likes;
 DROP TABLE IF EXISTS friendships;
@@ -50,4 +52,24 @@ CREATE TABLE friendships (
     user_id INT REFERENCES users(user_id) ON DELETE CASCADE,
     friend_id INT REFERENCES users(user_id) ON DELETE CASCADE,
     PRIMARY KEY (user_id, friend_id)
+);
+
+CREATE TABLE reviews (
+    review_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    content TEXT NOT NULL,
+    is_positive BOOLEAN NOT NULL,
+    film_id INT,
+    user_id INT,
+    FOREIGN KEY (film_id) REFERENCES films(film_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON UPDATE CASCADE ON DELETE CASCADE,
+    useful INT NOT NULL DEFAULT 0
+);
+
+CREATE TABLE review_likes (
+    review_id INT,
+    user_id INT,
+    is_like BOOLEAN NOT NULL,
+    PRIMARY KEY (review_id, user_id),
+    FOREIGN KEY (review_id) REFERENCES reviews(review_id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
