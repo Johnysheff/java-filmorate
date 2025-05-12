@@ -1,6 +1,7 @@
 package ru.yandex.practicum.filmorate.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -41,5 +42,13 @@ public class GlobalExceptionHandler {
     public ErrorResponse handleInternalError(final Exception e) {
         log.error("Внутренняя ошибка сервера: ", e);  // Логирование с полным стектрейсом
         return new ErrorResponse("Внутренняя ошибка сервера", e.getMessage());
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleDataIntegrityViolation(DataIntegrityViolationException e) {
+        log.warn("Ошибка целостности данных: {}", e.getMessage());
+        return new ErrorResponse("Ошибка целостности данных",
+                "Проверьте корректность связанных сущностей (режиссеры, жанры, рейтинги)");
     }
 }

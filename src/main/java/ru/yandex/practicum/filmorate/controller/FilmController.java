@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.service.FilmService;
 
+import java.util.Collections;
 import java.util.List;
 
 @RestController
@@ -25,7 +26,11 @@ public class FilmController {
 
     @PutMapping
     public Film updateFilm(@Valid @RequestBody Film film) {
-        return filmService.updateFilm(film);
+        Film updatedFilm = filmService.updateFilm(film);
+        if (updatedFilm.getDirectors() == null) {
+            updatedFilm.setDirectors(Collections.emptyList());
+        }
+        return updatedFilm;
     }
 
     @GetMapping
@@ -35,7 +40,14 @@ public class FilmController {
 
     @GetMapping("/{id}")
     public Film getFilmById(@PathVariable int id) {
-        return filmService.getFilmById(id);
+        Film film = filmService.getFilmById(id);
+        if (film.getGenres() == null) {
+            film.setGenres(Collections.emptyList());
+        }
+        if (film.getDirectors() == null) {
+            film.setDirectors(Collections.emptyList());
+        }
+        return film;
     }
 
     @PutMapping("/{id}/like/{userId}")
@@ -65,5 +77,17 @@ public class FilmController {
     @DeleteMapping("/{filmId}")
     public Film deleteFilm(@PathVariable int filmId) {
         return filmService.deleteFilm(filmId);
+    }
+
+    @GetMapping("/director/{directorId}")
+    public List<Film> getFilmsByDirector(@PathVariable int directorId,
+                                         @RequestParam String sortBy) {
+        List<Film> films = filmService.getFilmsByDirector(directorId, sortBy);
+        films.forEach(film -> {
+            if (film.getDirectors() == null) {
+                film.setDirectors(Collections.emptyList());
+            }
+        });
+        return films;
     }
 }

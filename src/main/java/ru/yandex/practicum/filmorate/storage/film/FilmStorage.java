@@ -30,4 +30,8 @@ public interface FilmStorage {
     List<Film> getCommonFilms(int userId, int userId2);
 
     Map<Integer, List<Genre>> getAllGenres(Collection<Film> films);
+
+    List<Film> getFilmsByDirectorSortedByYear(int directorId);
+
+    List<Film> getFilmsByDirectorSortedByLikes(int directorId);
 }

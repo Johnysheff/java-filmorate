@@ -1,22 +1,17 @@
--- MPA рейтинги
-MERGE INTO mpa_ratings (mpa_id, name, description) VALUES (1, 'G', 'Нет возрастных ограничений');
-MERGE INTO mpa_ratings (mpa_id, name, description) VALUES (2, 'PG', 'Детям рекомендуется смотреть с родителями');
-MERGE INTO mpa_ratings (mpa_id, name, description) VALUES (3, 'PG-13', 'Детям до 13 лет просмотр не желателен');
-MERGE INTO mpa_ratings (mpa_id, name, description) VALUES (4, 'R', 'Лицам до 17 лет с родителями');
-MERGE INTO mpa_ratings (mpa_id, name, description) VALUES (5, 'NC-17', 'Лицам до 18 лет просмотр запрещён');
-
--- Жанры
-MERGE INTO genres (genre_id, name) VALUES (1, 'Комедия');
-MERGE INTO genres (genre_id, name) VALUES (2, 'Драма');
-MERGE INTO genres (genre_id, name) VALUES (3, 'Мультфильм');
-MERGE INTO genres (genre_id, name) VALUES (4, 'Триллер');
-MERGE INTO genres (genre_id, name) VALUES (5, 'Документальный');
-MERGE INTO genres (genre_id, name) VALUES (6, 'Боевик');
-
 -- Тестовый пользователь
 MERGE INTO users (user_id, email, login, name, birthday)
-VALUES (1, 'test@mail.ru', 'test', 'Test User', '2000-01-01');
+VALUES (1, 'test@mail.ru', 'testlogin', 'Тестовый Пользователь', '2000-01-01');
+
+-- Тестовые режиссеры
+MERGE INTO directors (director_id, name) VALUES (1, 'Тестовый Режиссер 1');
+MERGE INTO directors (director_id, name) VALUES (2, 'Тестовый Режиссер 2');
 
 -- Тестовый фильм
 MERGE INTO films (film_id, name, description, release_date, duration, mpa_id)
-VALUES (1, 'Test Film', 'Test Description', '2020-01-01', 120, 1);
+VALUES (1, 'Тестовый Фильм', 'Описание тестового фильма', '2020-01-01', 120, 1);
+
+-- Связь фильма и режиссера
+MERGE INTO film_directors (film_id, director_id) VALUES (1, 1);
+
+--Лайки для тестов
+MERGE INTO film_likes (film_id, user_id) VALUES (1, 1);

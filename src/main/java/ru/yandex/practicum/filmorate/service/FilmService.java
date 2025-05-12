@@ -6,10 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
-import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.model.Genre;
-import ru.yandex.practicum.filmorate.model.MpaRating;
-import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.model.*;
+import ru.yandex.practicum.filmorate.storage.director.DirectorStorage;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.genre.GenreStorage;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaStorage;
@@ -26,22 +24,30 @@ public class FilmService {
     private final UserStorage userStorage;
     private final MpaStorage mpaStorage;
     private final GenreStorage genreStorage;
+    private final DirectorStorage directorStorage;
 
     @Autowired
     public FilmService(FilmStorage filmStorage,
                        UserStorage userStorage,
                        MpaStorage mpaStorage,
-                       GenreStorage genreStorage) {
+                       GenreStorage genreStorage,
+                       DirectorStorage directorStorage) {
         this.filmStorage = filmStorage;
         this.userStorage = userStorage;
         this.mpaStorage = mpaStorage;
         this.genreStorage = genreStorage;
+        this.directorStorage = directorStorage;
     }
 
     public Film addFilm(Film film) {
         validateFilm(film);
         Film savedFilm = filmStorage.addFilm(film);
-        genreStorage.addGenresToFilm(savedFilm.getId(), film.getGenres());
+        if (film.getGenres() != null) {
+            genreStorage.addGenresToFilm(savedFilm.getId(), film.getGenres());
+        }
+        if (film.getDirectors() != null) {
+            directorStorage.addDirectorsToFilm(savedFilm.getId(), film.getDirectors());
+        }
         return savedFilm;
     }
 
@@ -51,8 +57,19 @@ public class FilmService {
         if (foundedFilm.isEmpty()) {
             throw new NotFoundException("Фильм не найден");
         }
+
         Film updatedFilm = filmStorage.updateFilm(film);
+
         genreStorage.addGenresToFilm(updatedFilm.getId(), film.getGenres());
+        directorStorage.deleteDirectorsFromFilm(updatedFilm.getId());
+
+        if (film.getDirectors() != null && !film.getDirectors().isEmpty()) {
+            directorStorage.addDirectorsToFilm(updatedFilm.getId(), film.getDirectors());
+            updatedFilm.setDirectors(new ArrayList<>(film.getDirectors()));
+        } else {
+            updatedFilm.setDirectors(Collections.emptyList());
+        }
+
         return updatedFilm;
     }
 
@@ -115,13 +132,33 @@ public class FilmService {
         return films;
     }
 
+    public List<Film> getFilmsByDirector(int directorId, String sortBy) {
+
+        directorStorage.getDirectorById(directorId)
+                .orElseThrow(() -> new NotFoundException("Режиссёр с id " + directorId + " не найден"));
+
+        List<Film> films;
+        if (sortBy.equals("year")) {
+            films = filmStorage.getFilmsByDirectorSortedByYear(directorId);
+        } else if (sortBy.equals("likes")) {
+            films = filmStorage.getFilmsByDirectorSortedByLikes(directorId);
+        } else {
+            throw new ValidationException("Неправильный параметр сортировки: " + sortBy);
+        }
+
+        films.forEach(film -> {
+            List<Director> directors = directorStorage.getDirectorsByFilmId(film.getId());
+            film.setDirectors(directors != null ? directors : Collections.emptyList());
+        });
+
+        return films;
+    }
+
     private void validateFilm(Film film) {
 
         if (film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
-            log.error("Дата релиза должна быть не раньше 28 декабря 1895 года.");
             throw new ValidationException("Дата релиза должна быть не раньше 28 декабря 1895 года.");
         }
-
         if (film.getMpa() != null) {
             MpaRating mpaRating = mpaStorage.getMpaRatingById(film.getMpa().getId())
                     .orElseThrow(() -> new NotFoundException("Передан несуществующий id рейтинга"));
@@ -135,7 +172,7 @@ public class FilmService {
                     .map(Genre::getId)
                     .collect(Collectors.toSet());
 
-            List<Genre> validGenres = genreStorage.getGenresByIds(genreIds.stream().toList());
+            List<Genre> validGenres = genreStorage.getGenresByIds(new ArrayList<>(genreIds));
             if (validGenres.size() != genreIds.size()) {
                 throw new NotFoundException("Некоторые жанры не найдены.");
             }
@@ -143,6 +180,16 @@ public class FilmService {
         } else {
             film.setGenres(Collections.emptyList());
         }
-    }
 
+        if (!CollectionUtils.isEmpty(film.getDirectors())) {
+            Set<Integer> directorIds = film.getDirectors().stream()
+                    .map(Director::getId)
+                    .collect(Collectors.toSet());
+
+            for (Integer directorId : directorIds) {
+                directorStorage.getDirectorById(directorId)
+                        .orElseThrow(() -> new NotFoundException("Режиссёр с id " + directorId + " не найден"));
+            }
+        }
+    }
 }
