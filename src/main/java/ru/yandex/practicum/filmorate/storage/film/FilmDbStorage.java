@@ -71,7 +71,7 @@ public class FilmDbStorage implements FilmStorage {
                 SELECT f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id,
                 m.name AS mpa_name, m.description AS mpa_description, g.genre_id, g.name AS genre_name,
                 d.director_id, d.name AS director_name
-                FROM films f 
+                FROM films f
                 JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
                 LEFT JOIN film_genres fg ON f.film_id = fg.film_id
                 LEFT JOIN genres g ON fg.genre_id = g.genre_id
