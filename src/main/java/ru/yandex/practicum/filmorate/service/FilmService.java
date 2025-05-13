@@ -7,6 +7,9 @@ import org.springframework.util.CollectionUtils;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.*;
+import ru.yandex.practicum.filmorate.model.feed.Event;
+import ru.yandex.practicum.filmorate.model.feed.EventOperation;
+import ru.yandex.practicum.filmorate.model.feed.EventType;
 import ru.yandex.practicum.filmorate.storage.director.DirectorStorage;
 import ru.yandex.practicum.filmorate.storage.film.FilmStorage;
 import ru.yandex.practicum.filmorate.storage.genre.GenreStorage;
@@ -25,18 +28,21 @@ public class FilmService {
     private final MpaStorage mpaStorage;
     private final GenreStorage genreStorage;
     private final DirectorStorage directorStorage;
+    private final EventService eventService;
 
     @Autowired
     public FilmService(FilmStorage filmStorage,
                        UserStorage userStorage,
                        MpaStorage mpaStorage,
                        GenreStorage genreStorage,
-                       DirectorStorage directorStorage) {
+                       DirectorStorage directorStorage,
+                       EventService eventService) {
         this.filmStorage = filmStorage;
         this.userStorage = userStorage;
         this.mpaStorage = mpaStorage;
         this.genreStorage = genreStorage;
         this.directorStorage = directorStorage;
+        this.eventService = eventService;
     }
 
     public Film addFilm(Film film) {
@@ -99,6 +105,17 @@ public class FilmService {
             throw new NotFoundException("Пользователь не найден");
         }
         filmStorage.addLike(filmId, userId);
+
+        // Добавляем событие
+        Event event = Event.builder()
+                .timestamp(System.currentTimeMillis())
+                .userId(userId)
+                .eventType(EventType.LIKE)
+                .operation(EventOperation.ADD)
+                .entityId(filmId)
+                .build();
+        eventService.addEvent(event);
+
         log.info("Пользователь {} поставил лайк фильму {}", userId, filmId);
     }
 
@@ -112,6 +129,17 @@ public class FilmService {
             throw new NotFoundException("Пользователь не найден");
         }
         filmStorage.removeLike(filmId, userId);
+
+        // Добавляем событие
+        Event event = Event.builder()
+                .timestamp(System.currentTimeMillis())
+                .userId(userId)
+                .eventType(EventType.LIKE)
+                .operation(EventOperation.REMOVE)
+                .entityId(filmId)
+                .build();
+        eventService.addEvent(event);
+
         log.info("Пользователь {} удалил лайк у фильма {}", userId, filmId);
     }
 

@@ -6,6 +6,9 @@ import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.model.feed.Event;
+import ru.yandex.practicum.filmorate.model.feed.EventOperation;
+import ru.yandex.practicum.filmorate.model.feed.EventType;
 import ru.yandex.practicum.filmorate.storage.user.UserStorage;
 
 import java.util.ArrayList;
@@ -18,11 +21,14 @@ import java.util.Optional;
 public class UserService {
     private final UserStorage userStorage;
     private final RecommendationService recommendationService;
+    private final EventService eventService;
 
     @Autowired
-    public UserService(UserStorage userStorage, RecommendationService recommendationService) {
+    public UserService(UserStorage userStorage, RecommendationService recommendationService, EventService eventService) {
         this.userStorage = userStorage;
         this.recommendationService = recommendationService;
+        this.eventService = eventService;
+
     }
 
     public User addUser(User user) {
@@ -63,6 +69,16 @@ public class UserService {
             throw new NotFoundException("Отсутствует друг");
         }
         userStorage.addFriend(userId, friendId);
+
+        Event event = Event.builder()
+                .timestamp(System.currentTimeMillis())
+                .userId(userId)
+                .eventType(EventType.FRIEND)
+                .operation(EventOperation.ADD)
+                .entityId(friendId)
+                .build();
+        eventService.addEvent(event);
+
         log.info("Пользователь {} добавил в друзья пользователя {}", userId, friendId);
     }
 
@@ -76,6 +92,16 @@ public class UserService {
             throw new NotFoundException("Отсутствует друг");
         }
         userStorage.removeFriend(userId, friendId);
+
+        Event event = Event.builder()
+                .timestamp(System.currentTimeMillis())
+                .userId(userId)
+                .eventType(EventType.FRIEND)
+                .operation(EventOperation.REMOVE)
+                .entityId(friendId)
+                .build();
+        eventService.addEvent(event);
+
         log.info("Пользователь {} удалил из друзей пользователя {}", userId, friendId);
     }
 
