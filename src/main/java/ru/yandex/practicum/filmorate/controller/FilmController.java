@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.service.FilmService;
+import ru.yandex.practicum.filmorate.storage.film.FilmDbStorage;
 
 import java.util.Collections;
 import java.util.List;
@@ -13,10 +14,12 @@ import java.util.List;
 @RequestMapping("/films")
 public class FilmController {
     private final FilmService filmService;
+    private final FilmDbStorage filmDbStorage;
 
     @Autowired
-    public FilmController(FilmService filmService) {
+    public FilmController(FilmService filmService, FilmDbStorage filmDbStorage) {
         this.filmService = filmService;
+        this.filmDbStorage = filmDbStorage;
     }
 
     @PostMapping
@@ -89,5 +92,23 @@ public class FilmController {
             }
         });
         return films;
+    }
+
+    @GetMapping("/search")
+    public List<Film> searchFilms(@RequestParam String query, @RequestParam String by) {
+        if (query == null || by == null) {
+            return List.of();
+        }
+
+        switch (by.toLowerCase()) {
+            case "director":
+                return filmDbStorage.searchFilmsByDirector(query);
+            case "title":
+                return filmDbStorage.searchFilmsByTitle(query);
+            case "title,director":
+                return filmDbStorage.searchFilmsByTitleAndDirector(query,query);
+            default:
+                return List.of();
+        }
     }
 }
