@@ -145,8 +145,9 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public List<Film> getAllFilms() {
         String sql = "SELECT f.*, m.name AS mpa_name, m.description AS mpa_description " +
-                     "FROM films f JOIN mpa_ratings m ON f.mpa_id = m.mpa_id";
-        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+                "FROM films f JOIN mpa_ratings m ON f.mpa_id = m.mpa_id";
+
+        List<Film> films = jdbcTemplate.query(sql, (rs, rowNum) -> {
             Film film = new Film(
                     rs.getString("name"),
                     rs.getString("description"),
@@ -161,6 +162,46 @@ public class FilmDbStorage implements FilmStorage {
             ));
             return film;
         });
+
+        loadGenresForFilms(films);
+
+        loadDirectorsForFilms(films);
+
+        return films;
+    }
+
+    private void loadGenresForFilms(List<Film> films) {
+        String sql = "SELECT fg.film_id, g.genre_id, g.name FROM film_genres fg " +
+                "JOIN genres g ON fg.genre_id = g.genre_id " +
+                "WHERE fg.film_id = ?";
+
+        for (Film film : films) {
+            List<Genre> genres = jdbcTemplate.query(sql,
+                    (rs, rowNum) -> new Genre(
+                            rs.getInt("genre_id"),
+                            rs.getString("name")
+                    ),
+                    film.getId()
+            );
+            film.setGenres(new ArrayList<>(genres));
+        }
+    }
+
+    private void loadDirectorsForFilms(List<Film> films) {
+        String sql = "SELECT fd.film_id, d.director_id, d.name FROM film_directors fd " +
+                "JOIN directors d ON fd.director_id = d.director_id " +
+                "WHERE fd.film_id = ?";
+
+        for (Film film : films) {
+            List<Director> directors = jdbcTemplate.query(sql,
+                    (rs, rowNum) -> new Director(
+                            rs.getInt("director_id"),
+                            rs.getString("name")
+                    ),
+                    film.getId()
+            );
+            film.setDirectors(new ArrayList<>(directors));
+        }
     }
 
     @Override
