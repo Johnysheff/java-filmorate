@@ -3,6 +3,7 @@ package ru.yandex.practicum.filmorate.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Review;
 import ru.yandex.practicum.filmorate.model.feed.Event;
 import ru.yandex.practicum.filmorate.model.feed.EventOperation;
@@ -17,6 +18,8 @@ import java.util.List;
 public class ReviewService {
     private final ReviewRepository repository;
     private final EventService eventService;
+    private final FilmDbStorage filmStorage;
+    private final UserDbStorage userStorage;
 
     @Autowired
     public ReviewService(ReviewRepository repository,
@@ -25,9 +28,14 @@ public class ReviewService {
                          EventService eventService) {
         this.repository = repository;
         this.eventService = eventService;
+        this.userStorage = userStorage;
+        this.filmStorage = storage;
     }
 
     public Review addReview(Review review) {
+        validateUserId(review.getUserId());
+        validateFilmId(review.getFilmId());
+
         Review addedReview = repository.addReview(review);
 
         Event event = Event.builder()
@@ -106,5 +114,19 @@ public class ReviewService {
     public void removeReaction(int reviewId, int userId) {
         repository.removeReaction(reviewId, userId);
         repository.updateReviewUseful(reviewId);
+    }
+
+    public void validateUserId(Integer id) {
+        if (id == null) {
+            throw new ValidationException("Id пользователя не может быть null.");
+        }
+        userStorage.getUserById(id).orElseThrow(() -> new NotFoundException("Пользователь с id=" + id + " не найден."));
+    }
+
+    public void validateFilmId(Integer id) {
+        if (id == null) {
+            throw new ValidationException("Id фильма не может быть null.");
+        }
+        filmStorage.getFilmById(id).orElseThrow(() -> new NotFoundException("Фильм с id=" + id + " не найден."));
     }
 }

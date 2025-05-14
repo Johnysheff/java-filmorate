@@ -58,7 +58,7 @@ public class GlobalExceptionHandler {
     }
 
     // Ловим все необработанные исключения (статус 500)
-    @ExceptionHandler(Exception.class)
+    @ExceptionHandler({Exception.class, InternalServerException.class})
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleInternalError(final Exception e) {
         log.error("Внутренняя ошибка сервера: ", e);  // Логирование с полным стектрейсом
