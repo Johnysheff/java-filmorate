@@ -61,7 +61,7 @@ public class ReviewRepository {
                 review.getReviewId()
         );
 
-        return findReviewById(review.getReviewId()).orElseThrow(() -> new RuntimeException("Не удалось обновить отзыв"));
+        return findReviewById(review.getReviewId()).orElseThrow(() -> new InternalServerException("Не удалось обновить отзыв"));
     }
 
     public Optional<Review> findReviewById(long id) {

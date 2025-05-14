@@ -156,68 +156,73 @@ public class FilmService {
         films.forEach(film -> {
             int filmId = film.getId();
             film.setGenres(filmGenres.getOrDefault(filmId, new ArrayList<>()));
+
+            if (film.getMpa() != null && film.getMpa().getId() != null) {
+                Optional<MpaRating> rating = mpaStorage.getMpaRatingById(film.getMpa().getId());
+                rating.ifPresent(film::setMpa);
+            }
         });
         return films;
     }
 
-    public List<Film> getFilmsByDirector(int directorId, String sortBy) {
+        public List<Film> getFilmsByDirector ( int directorId, String sortBy){
 
-        directorStorage.getDirectorById(directorId)
-                .orElseThrow(() -> new NotFoundException("Режиссёр с id " + directorId + " не найден"));
+            directorStorage.getDirectorById(directorId)
+                    .orElseThrow(() -> new NotFoundException("Режиссёр с id " + directorId + " не найден"));
 
-        List<Film> films;
-        if (sortBy.equals("year")) {
-            films = filmStorage.getFilmsByDirectorSortedByYear(directorId);
-        } else if (sortBy.equals("likes")) {
-            films = filmStorage.getFilmsByDirectorSortedByLikes(directorId);
-        } else {
-            throw new ValidationException("Неправильный параметр сортировки: " + sortBy);
-        }
-
-        films.forEach(film -> {
-            List<Director> directors = directorStorage.getDirectorsByFilmId(film.getId());
-            film.setDirectors(directors != null ? directors : Collections.emptyList());
-        });
-
-        return films;
-    }
-
-    private void validateFilm(Film film) {
-
-        if (film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
-            throw new ValidationException("Дата релиза должна быть не раньше 28 декабря 1895 года.");
-        }
-        if (film.getMpa() != null) {
-            MpaRating mpaRating = mpaStorage.getMpaRatingById(film.getMpa().getId())
-                    .orElseThrow(() -> new NotFoundException("Передан несуществующий id рейтинга"));
-            film.setMpa(mpaRating);
-        } else {
-            throw new ValidationException("MPA рейтинг не может быть пустым.");
-        }
-
-        if (!CollectionUtils.isEmpty(film.getGenres())) {
-            Set<Integer> genreIds = film.getGenres().stream()
-                    .map(Genre::getId)
-                    .collect(Collectors.toSet());
-
-            List<Genre> validGenres = genreStorage.getGenresByIds(new ArrayList<>(genreIds));
-            if (validGenres.size() != genreIds.size()) {
-                throw new NotFoundException("Некоторые жанры не найдены.");
+            List<Film> films;
+            if (sortBy.equals("year")) {
+                films = filmStorage.getFilmsByDirectorSortedByYear(directorId);
+            } else if (sortBy.equals("likes")) {
+                films = filmStorage.getFilmsByDirectorSortedByLikes(directorId);
+            } else {
+                throw new ValidationException("Неправильный параметр сортировки: " + sortBy);
             }
-            film.setGenres(validGenres.stream().sorted().toList());
-        } else {
-            film.setGenres(Collections.emptyList());
+
+            films.forEach(film -> {
+                List<Director> directors = directorStorage.getDirectorsByFilmId(film.getId());
+                film.setDirectors(directors != null ? directors : Collections.emptyList());
+            });
+
+            return films;
         }
 
-        if (!CollectionUtils.isEmpty(film.getDirectors())) {
-            Set<Integer> directorIds = film.getDirectors().stream()
-                    .map(Director::getId)
-                    .collect(Collectors.toSet());
+        private void validateFilm (Film film){
 
-            for (Integer directorId : directorIds) {
-                directorStorage.getDirectorById(directorId)
-                        .orElseThrow(() -> new NotFoundException("Режиссёр с id " + directorId + " не найден"));
+            if (film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
+                throw new ValidationException("Дата релиза должна быть не раньше 28 декабря 1895 года.");
+            }
+            if (film.getMpa() != null) {
+                MpaRating mpaRating = mpaStorage.getMpaRatingById(film.getMpa().getId())
+                        .orElseThrow(() -> new NotFoundException("Передан несуществующий id рейтинга"));
+                film.setMpa(mpaRating);
+            } else {
+                throw new ValidationException("MPA рейтинг не может быть пустым.");
+            }
+
+            if (!CollectionUtils.isEmpty(film.getGenres())) {
+                Set<Integer> genreIds = film.getGenres().stream()
+                        .map(Genre::getId)
+                        .collect(Collectors.toSet());
+
+                List<Genre> validGenres = genreStorage.getGenresByIds(new ArrayList<>(genreIds));
+                if (validGenres.size() != genreIds.size()) {
+                    throw new NotFoundException("Некоторые жанры не найдены.");
+                }
+                film.setGenres(validGenres.stream().sorted().toList());
+            } else {
+                film.setGenres(Collections.emptyList());
+            }
+
+            if (!CollectionUtils.isEmpty(film.getDirectors())) {
+                Set<Integer> directorIds = film.getDirectors().stream()
+                        .map(Director::getId)
+                        .collect(Collectors.toSet());
+
+                for (Integer directorId : directorIds) {
+                    directorStorage.getDirectorById(directorId)
+                            .orElseThrow(() -> new NotFoundException("Режиссёр с id " + directorId + " не найден"));
+                }
             }
         }
     }
-}
