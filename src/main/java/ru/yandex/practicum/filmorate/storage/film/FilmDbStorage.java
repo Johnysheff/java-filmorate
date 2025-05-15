@@ -304,6 +304,7 @@ public class FilmDbStorage implements FilmStorage {
             );
             genres.computeIfAbsent(filmId, k -> new ArrayList<>()).add(genre);
         });
+
         return genres;
     }
 
