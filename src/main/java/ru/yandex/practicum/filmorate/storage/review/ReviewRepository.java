@@ -5,7 +5,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
+import ru.yandex.practicum.filmorate.exception.InternalServerException;
 import ru.yandex.practicum.filmorate.model.Review;
 
 import java.sql.PreparedStatement;
@@ -42,7 +42,7 @@ public class ReviewRepository {
         if (id != null) {
             review.setReviewId(id);
         } else {
-            throw new NotFoundException("Не удалось сохранить данные.");
+            throw new InternalServerException("Не удалось сохранить данные.");
         }
         return review;
     }
@@ -60,7 +60,7 @@ public class ReviewRepository {
                 review.getReviewId()
         );
 
-        return review;
+        return findReviewById(review.getReviewId()).orElseThrow(() -> new RuntimeException("Не удалось обновить отзыв"));
     }
 
     public Optional<Review> findReviewById(long id) {

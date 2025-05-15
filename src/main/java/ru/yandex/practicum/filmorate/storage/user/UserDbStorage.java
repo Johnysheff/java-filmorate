@@ -27,6 +27,9 @@ public class UserDbStorage implements UserStorage {
 
     @Override
     public User addUser(User user) {
+        if (user.getName() == null || user.getName().isBlank()) {
+            user.setName(user.getLogin());
+        }
         String sql = "INSERT INTO users (email, login, name, birthday) VALUES (?, ?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -77,7 +80,13 @@ public class UserDbStorage implements UserStorage {
     @Override
     public List<User> getAllUsers() {
         String sql = """
-                SELECT u.user_id as user_id, u.name, f.friend_id
+                    SELECT
+                    u.user_id as user_id,
+                    u.email,
+                    u.login,
+                    u.name,
+                    u.birthday,
+                    f.friend_id
                 FROM users u
                 LEFT JOIN friendships f ON u.user_id = f.user_id
                 """;
@@ -91,7 +100,10 @@ public class UserDbStorage implements UserStorage {
                 User newUser = new User();
                 newUser.setId(id);
                 try {
+                    newUser.setEmail(rs.getString("email"));
+                    newUser.setLogin(rs.getString("login"));
                     newUser.setName(rs.getString("name"));
+                    newUser.setBirthday(rs.getDate("birthday").toLocalDate());
                 } catch (SQLException e) {
                     throw new RuntimeException(e);
                 }
