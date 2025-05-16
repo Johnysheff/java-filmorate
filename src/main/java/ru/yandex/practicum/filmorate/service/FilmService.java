@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.service;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
@@ -104,9 +105,13 @@ public class FilmService {
         if (foundedUser.isEmpty()) {
             throw new NotFoundException("Пользователь не найден");
         }
-        filmStorage.addLike(filmId, userId);
 
-        // Добавляем событие
+        try {
+            filmStorage.addLike(filmId, userId);
+        } catch (DataIntegrityViolationException e) {
+            return;
+        }
+
         Event event = Event.builder()
                 .timestamp(System.currentTimeMillis())
                 .userId(userId)
@@ -114,7 +119,7 @@ public class FilmService {
                 .operation(EventOperation.ADD)
                 .entityId(filmId)
                 .build();
-        eventService.addEvent(event);
+        eventService.addLikeEvent(userId, filmId);
 
         log.info("Пользователь {} поставил лайк фильму {}", userId, filmId);
     }
@@ -130,7 +135,6 @@ public class FilmService {
         }
         filmStorage.removeLike(filmId, userId);
 
-        // Добавляем событие
         Event event = Event.builder()
                 .timestamp(System.currentTimeMillis())
                 .userId(userId)
@@ -138,25 +142,38 @@ public class FilmService {
                 .operation(EventOperation.REMOVE)
                 .entityId(filmId)
                 .build();
-        eventService.addEvent(event);
+        eventService.removeLikeEvent(userId, filmId);
 
         log.info("Пользователь {} удалил лайк у фильма {}", userId, filmId);
     }
 
     public List<Film> getPopularFilms(int count, Integer genreId, Integer year) {
-        return filmStorage.getPopularFilmsWithFilters(count, genreId, year);
+        List<Film> films = filmStorage.getPopularFilmsWithFilters(count, genreId, year);
+
+        films.forEach(film -> {
+            if (film.getGenres() == null) {
+                film.setGenres(Collections.emptyList());
+            }
+            if (film.getDirectors() == null) {
+                film.setDirectors(Collections.emptyList());
+            }
+        });
+
+        return films;
     }
 
     public List<Film> getCommonFilms(int userId1, int userId2) {
         List<Film> films = filmStorage.getCommonFilms(userId1, userId2);
-        if (films.isEmpty()) {
-            return films;
-        }
-        Map<Integer, List<Genre>> filmGenres = filmStorage.getAllGenres(films);
+
         films.forEach(film -> {
-            int filmId = film.getId();
-            film.setGenres(filmGenres.getOrDefault(filmId, new ArrayList<>()));
+            if (film.getGenres() == null) {
+                film.setGenres(Collections.emptyList());
+            }
+            if (film.getDirectors() == null) {
+                film.setDirectors(Collections.emptyList());
+            }
         });
+
         return films;
     }
 
@@ -180,6 +197,36 @@ public class FilmService {
         });
 
         return films;
+    }
+
+    public List<Film> searchFilmsByTitle(String query) {
+        List<Film> films = filmStorage.searchFilmsByTitle(query);
+        initEmptyCollections(films);
+        return films;
+    }
+
+    public List<Film> searchFilmsByDirector(String query) {
+        List<Film> films = filmStorage.searchFilmsByDirector(query);
+        initEmptyCollections(films);
+        return films;
+    }
+
+
+    public List<Film> searchFilmsByTitleAndDirector(String title, String directorName) {
+        List<Film> films = filmStorage.searchFilmsByTitleAndDirector(title, directorName);
+        initEmptyCollections(films);
+        return films;
+    }
+
+    private void initEmptyCollections(List<Film> films) {
+        films.forEach(film -> {
+            if (film.getGenres() == null) {
+                film.setGenres(Collections.emptyList());
+            }
+            if (film.getDirectors() == null) {
+                film.setDirectors(Collections.emptyList());
+            }
+        });
     }
 
     private void validateFilm(Film film) {

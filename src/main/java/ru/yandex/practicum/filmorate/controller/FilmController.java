@@ -102,11 +102,11 @@ public class FilmController {
 
         switch (by.toLowerCase()) {
             case "director":
-                return filmDbStorage.searchFilmsByDirector(query);
+                return filmService.searchFilmsByDirector(query);
             case "title":
-                return filmDbStorage.searchFilmsByTitle(query);
+                return filmService.searchFilmsByTitle(query);
             case "title,director":
-                return filmDbStorage.searchFilmsByTitleAndDirector(query,query);
+                return filmService.searchFilmsByTitleAndDirector(query, query);
             default:
                 return List.of();
         }

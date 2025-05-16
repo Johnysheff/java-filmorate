@@ -57,7 +57,7 @@ public class GlobalExceptionHandler {
         return new ErrorResponse("Объект не найден", e.getMessage());
     }
 
-    // Ловим все необработанные исключения (статус 500)
+    //Ловим все необработанные исключения (статус 500)
     @ExceptionHandler({Exception.class, InternalServerException.class})
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleInternalError(final Exception e) {

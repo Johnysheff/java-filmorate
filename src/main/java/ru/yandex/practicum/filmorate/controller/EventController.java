@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import ru.yandex.practicum.filmorate.model.feed.Event;
 import ru.yandex.practicum.filmorate.service.EventService;
+import ru.yandex.practicum.filmorate.service.UserService;
 
 import java.util.List;
 
@@ -15,9 +16,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EventController {
     private final EventService eventService;
+    private final UserService userService;
 
     @GetMapping("/{id}/feed")
     public List<Event> getFeed(@PathVariable int id) {
+        userService.getUserById(id);
         return eventService.getEventsByUserId(id);
     }
 }

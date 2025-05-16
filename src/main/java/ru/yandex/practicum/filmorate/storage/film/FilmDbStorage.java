@@ -10,13 +10,12 @@ import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.model.MpaRating;
 import ru.yandex.practicum.filmorate.storage.director.DirectorStorage;
 import ru.yandex.practicum.filmorate.storage.genre.GenreStorage;
-import ru.yandex.practicum.filmorate.storage.mappers.FilmRowMapper;
 import ru.yandex.practicum.filmorate.storage.mpa.MpaStorage;
 
 import java.sql.Date;
 import java.sql.*;
-import java.time.LocalDate;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Repository
 public class FilmDbStorage implements FilmStorage {
@@ -145,7 +144,7 @@ public class FilmDbStorage implements FilmStorage {
     @Override
     public List<Film> getAllFilms() {
         String sql = "SELECT f.*, m.name AS mpa_name, m.description AS mpa_description " +
-                "FROM films f JOIN mpa_ratings m ON f.mpa_id = m.mpa_id";
+                     "FROM films f JOIN mpa_ratings m ON f.mpa_id = m.mpa_id";
 
         List<Film> films = jdbcTemplate.query(sql, (rs, rowNum) -> {
             Film film = new Film(
@@ -171,37 +170,63 @@ public class FilmDbStorage implements FilmStorage {
     }
 
     private void loadGenresForFilms(List<Film> films) {
-        String sql = "SELECT fg.film_id, g.genre_id, g.name FROM film_genres fg " +
-                "JOIN genres g ON fg.genre_id = g.genre_id " +
-                "WHERE fg.film_id = ?";
+        if (films == null || films.isEmpty()) return;
 
-        for (Film film : films) {
-            List<Genre> genres = jdbcTemplate.query(sql,
-                    (rs, rowNum) -> new Genre(
-                            rs.getInt("genre_id"),
-                            rs.getString("name")
-                    ),
-                    film.getId()
+        String filmIds = films.stream()
+                .map(f -> String.valueOf(f.getId()))
+                .collect(Collectors.joining(","));
+
+        String sql = String.format("""
+                SELECT fg.film_id, g.genre_id, g.name
+                FROM film_genres fg
+                JOIN genres g ON g.genre_id = fg.genre_id
+                WHERE fg.film_id IN (%s)
+                """, filmIds);
+
+        Map<Integer, List<Genre>> filmGenres = new HashMap<>();
+        jdbcTemplate.query(sql, rs -> {
+            int filmId = rs.getInt("film_id");
+            Genre genre = new Genre(
+                    rs.getInt("genre_id"),
+                    rs.getString("name")
             );
-            film.setGenres(new ArrayList<>(genres));
-        }
+            filmGenres.computeIfAbsent(filmId, k -> new ArrayList<>()).add(genre);
+        });
+
+        films.forEach(film -> {
+            List<Genre> genres = filmGenres.getOrDefault(film.getId(), Collections.emptyList());
+            film.setGenres(genres);
+        });
     }
 
     private void loadDirectorsForFilms(List<Film> films) {
-        String sql = "SELECT fd.film_id, d.director_id, d.name FROM film_directors fd " +
-                "JOIN directors d ON fd.director_id = d.director_id " +
-                "WHERE fd.film_id = ?";
+        if (films == null || films.isEmpty()) return;
 
-        for (Film film : films) {
-            List<Director> directors = jdbcTemplate.query(sql,
-                    (rs, rowNum) -> new Director(
-                            rs.getInt("director_id"),
-                            rs.getString("name")
-                    ),
-                    film.getId()
+        String filmIds = films.stream()
+                .map(f -> String.valueOf(f.getId()))
+                .collect(Collectors.joining(","));
+
+        String sql = String.format("""
+                SELECT fd.film_id, d.director_id, d.name
+                FROM film_directors fd
+                JOIN directors d ON fd.director_id = d.director_id
+                WHERE fd.film_id IN (%s)
+                """, filmIds);
+
+        Map<Integer, List<Director>> filmDirectors = new HashMap<>();
+        jdbcTemplate.query(sql, rs -> {
+            int filmId = rs.getInt("film_id");
+            Director director = new Director(
+                    rs.getInt("director_id"),
+                    rs.getString("name")
             );
-            film.setDirectors(new ArrayList<>(directors));
-        }
+            filmDirectors.computeIfAbsent(filmId, k -> new ArrayList<>()).add(director);
+        });
+
+        films.forEach(film -> {
+            List<Director> directors = filmDirectors.getOrDefault(film.getId(), Collections.emptyList());
+            film.setDirectors(directors);
+        });
     }
 
     @Override
@@ -247,8 +272,9 @@ public class FilmDbStorage implements FilmStorage {
             }
         }
 
-        sql.append(" GROUP BY f.film_id ORDER BY likes_count DESC LIMIT ?");
-        return jdbcTemplate.query(sql.toString(), (rs, rowNum) -> {
+        sql.append(" GROUP BY f.film_id, m.mpa_id ORDER BY likes_count DESC LIMIT ?");
+
+        List<Film> films = jdbcTemplate.query(sql.toString(), (rs, rowNum) -> {
             Film film = new Film(
                     rs.getString("name"),
                     rs.getString("description"),
@@ -256,27 +282,59 @@ public class FilmDbStorage implements FilmStorage {
                     rs.getInt("duration")
             );
             film.setId(rs.getInt("film_id"));
-            film.setMpa(new MpaRating(
+
+            MpaRating mpa = new MpaRating(
                     rs.getInt("mpa_id"),
                     rs.getString("mpa_name"),
                     rs.getString("mpa_description")
-            ));
+            );
+            film.setMpa(mpa);
+
             return film;
         }, count);
+
+        loadGenresForFilms(films);
+        loadDirectorsForFilms(films);
+
+        return films;
     }
 
     @Override
     public List<Film> getCommonFilms(int userId1, int userId2) {
         String query = """
-                SELECT f.*
+                SELECT f.*, m.name AS mpa_name, m.description AS mpa_description
                 FROM FILMS f
+                JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
                 JOIN film_likes fl1 ON f.film_id = fl1.film_id AND fl1.user_id = ?
                 JOIN film_likes fl2 ON f.film_id = fl2.film_id AND fl2.user_id = ?
                 LEFT JOIN film_likes fl_likes ON f.film_id = fl_likes.film_id
-                GROUP BY f.film_id
+                GROUP BY f.film_id, m.mpa_id
                 ORDER BY COUNT(fl_likes.user_id) DESC
                 """;
-        return jdbcTemplate.query(query, new FilmRowMapper(), userId1, userId2);
+
+        List<Film> films = jdbcTemplate.query(query, (rs, rowNum) -> {
+            Film film = new Film(
+                    rs.getString("name"),
+                    rs.getString("description"),
+                    rs.getDate("release_date").toLocalDate(),
+                    rs.getInt("duration")
+            );
+            film.setId(rs.getInt("film_id"));
+
+            MpaRating mpa = new MpaRating(
+                    rs.getInt("mpa_id"),
+                    rs.getString("mpa_name"),
+                    rs.getString("mpa_description")
+            );
+            film.setMpa(mpa);
+
+            return film;
+        }, userId1, userId2);
+
+        loadGenresForFilms(films);
+        loadDirectorsForFilms(films);
+
+        return films;
     }
 
     @Override
@@ -326,12 +384,21 @@ public class FilmDbStorage implements FilmStorage {
                 WHERE fd.director_id = ?
                 ORDER BY f.release_date
                 """;
-        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+
+        List<Film> films = jdbcTemplate.query(sql, (rs, rowNum) -> {
             Film film = createFilmFromResultSet(rs);
-            List<Director> directors = directorStorage.getDirectorsByFilmId(film.getId());
-            film.setDirectors(directors != null ? directors : Collections.emptyList());
+            film.setMpa(new MpaRating(
+                    rs.getInt("mpa_id"),
+                    rs.getString("mpa_name"),
+                    rs.getString("mpa_description")
+            ));
             return film;
         }, directorId);
+
+        loadGenresForFilms(films);
+        loadDirectorsForFilms(films);
+
+        return films;
     }
 
     @Override
@@ -344,15 +411,24 @@ public class FilmDbStorage implements FilmStorage {
                 JOIN film_directors fd ON f.film_id = fd.film_id
                 LEFT JOIN film_likes fl ON f.film_id = fl.film_id
                 WHERE fd.director_id = ?
-                GROUP BY f.film_id
+                GROUP BY f.film_id, m.mpa_id
                 ORDER BY likes_count DESC
                 """;
-        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+
+        List<Film> films = jdbcTemplate.query(sql, (rs, rowNum) -> {
             Film film = createFilmFromResultSet(rs);
-            List<Director> directors = directorStorage.getDirectorsByFilmId(film.getId());
-            film.setDirectors(directors != null ? directors : Collections.emptyList());
+            film.setMpa(new MpaRating(
+                    rs.getInt("mpa_id"),
+                    rs.getString("mpa_name"),
+                    rs.getString("mpa_description")
+            ));
             return film;
         }, directorId);
+
+        loadGenresForFilms(films);
+        loadDirectorsForFilms(films);
+
+        return films;
     }
 
     private Film createFilmFromResultSet(ResultSet rs) throws SQLException {
@@ -371,88 +447,92 @@ public class FilmDbStorage implements FilmStorage {
         return film;
     }
 
-    public List<Film> searchFilmsByDirector(String directorName) {
-        String sql =
-                "SELECT f.* " +
-                        "FROM films f " +
-                        "JOIN film_directors fd ON f.film_id = fd.film_id " +
-                        "JOIN directors d ON fd.director_id = d.director_id " +
-                        "WHERE LOWER(d.name) LIKE LOWER(?)";
+    @Override
+    public List<Film> searchFilmsByDirector(String query) {
+        String sql = """
+                SELECT DISTINCT f.*, m.name AS mpa_name, m.description AS mpa_description
+                FROM films f
+                JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
+                JOIN film_directors fd ON f.film_id = fd.film_id
+                JOIN directors d ON fd.director_id = d.director_id
+                WHERE LOWER(d.name) LIKE LOWER(?)
+                ORDER BY f.film_id
+                """;
 
-        String searchPattern = "%" + directorName + "%";
+        String searchPattern = "%" + query.toLowerCase() + "%";
 
-        return jdbcTemplate.query(sql, new Object[]{searchPattern}, (rs, rowNum) -> {
-            int filmId = rs.getInt("film_id");
-            String name = rs.getString("name");
-            String description = rs.getString("description");
-            LocalDate releaseDate = rs.getDate("release_date").toLocalDate();
-            int duration = rs.getInt("duration");
-            int mpaId = rs.getInt("mpa_id");
+        List<Film> films = jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Film film = createFilmFromResultSet(rs);
+            film.setMpa(new MpaRating(
+                    rs.getInt("mpa_id"),
+                    rs.getString("mpa_name"),
+                    rs.getString("mpa_description")
+            ));
+            return film;
+        }, searchPattern);
 
-            Optional<MpaRating> optionalMpa = mpaStorage.getMpaRatingById(mpaId);
-            MpaRating mpa = optionalMpa.orElse(null);
+        loadGenresForFilms(films);
+        loadDirectorsForFilms(films);
 
-            List<Genre> genres = genreStorage.getGenresByFilmId(filmId);
-            List<Director> directors = directorStorage.getDirectorsByFilmId(filmId);
-
-            return new Film(filmId, name, description, releaseDate, duration, mpa, genres, directors);
-        });
+        return films;
     }
 
-    public List<Film> searchFilmsByTitle(String title) {
-        String sql =
-                "SELECT f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id " +
-                        "FROM films f " +
-                        "WHERE LOWER(f.name) LIKE LOWER(?)";
+    @Override
+    public List<Film> searchFilmsByTitle(String query) {
+        String sql = """
+                SELECT f.*, m.name AS mpa_name, m.description AS mpa_description
+                FROM films f
+                JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
+                WHERE LOWER(f.name) LIKE LOWER(?)
+                ORDER BY f.film_id
+                """;
 
-        String searchPattern = "%" + title + "%";
+        String searchPattern = "%" + query.toLowerCase() + "%";
 
-        return jdbcTemplate.query(sql, new Object[]{searchPattern}, (rs, rowNum) -> {
-            int filmId = rs.getInt("film_id");
-            String filmName = rs.getString("name");
-            String description = rs.getString("description");
-            LocalDate releaseDate = rs.getDate("release_date").toLocalDate();
-            int duration = rs.getInt("duration");
-            int mpaId = rs.getInt("mpa_id");
+        List<Film> films = jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Film film = createFilmFromResultSet(rs);
+            film.setMpa(new MpaRating(
+                    rs.getInt("mpa_id"),
+                    rs.getString("mpa_name"),
+                    rs.getString("mpa_description")
+            ));
+            return film;
+        }, searchPattern);
 
-            Optional<MpaRating> optionalMpa = mpaStorage.getMpaRatingById(mpaId);
-            MpaRating mpa = optionalMpa.orElse(null);
+        loadGenresForFilms(films);
+        loadDirectorsForFilms(films);
 
-            List<Genre> genres = genreStorage.getGenresByFilmId(filmId);
-            List<Director> directors = directorStorage.getDirectorsByFilmId(filmId);
-
-            return new Film(filmId, filmName, description, releaseDate, duration, mpa, genres, directors);
-        });
+        return films;
     }
 
+    @Override
     public List<Film> searchFilmsByTitleAndDirector(String title, String directorName) {
-        String sql =
-                "SELECT f.film_id, f.name, f.description, f.release_date, f.duration, f.mpa_id " +
-                        "FROM films f " +
-                        "LEFT JOIN film_directors fd ON f.film_id = fd.film_id " +
-                        "LEFT JOIN directors d ON fd.director_id = d.director_id " +
-                        "WHERE " +
-                        "LOWER(f.name) LIKE LOWER(?) " +
-                        "OR LOWER(d.name) LIKE LOWER(?)";
+        String sql = """
+                SELECT DISTINCT f.*, m.name AS mpa_name, m.description AS mpa_description
+                FROM films f
+                JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
+                LEFT JOIN film_directors fd ON f.film_id = fd.film_id
+                LEFT JOIN directors d ON fd.director_id = d.director_id
+                WHERE (LOWER(f.name) LIKE LOWER(?) OR LOWER(d.name) LIKE LOWER(?))
+                ORDER BY f.film_id DESC
+                """;
 
-        String titlePattern = "%" + title + "%";
-        String directorPattern = "%" + directorName + "%";
+        String titlePattern = "%" + title.toLowerCase() + "%";
+        String directorPattern = "%" + directorName.toLowerCase() + "%";
 
-        return jdbcTemplate.query(sql, new Object[]{titlePattern, directorPattern}, (rs, rowNum) -> {
-            int filmId = rs.getInt("film_id");
-            String filmName = rs.getString("name");
-            String description = rs.getString("description");
-            LocalDate releaseDate = rs.getDate("release_date").toLocalDate();
-            int duration = rs.getInt("duration");
-            int mpaId = rs.getInt("mpa_id");
+        List<Film> films = jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Film film = createFilmFromResultSet(rs);
+            film.setMpa(new MpaRating(
+                    rs.getInt("mpa_id"),
+                    rs.getString("mpa_name"),
+                    rs.getString("mpa_description")
+            ));
+            return film;
+        }, titlePattern, directorPattern);
 
-            Optional<MpaRating> optionalMpa = mpaStorage.getMpaRatingById(mpaId);
-            MpaRating mpa = optionalMpa.orElse(null);
+        loadGenresForFilms(films);
+        loadDirectorsForFilms(films);
 
-            List<Genre> genres = genreStorage.getGenresByFilmId(filmId);
-            List<Director> directors = directorStorage.getDirectorsByFilmId(filmId);
-
-            return new Film(filmId, filmName, description, releaseDate, duration, mpa, genres, directors);
-        });
+        return films;
     }
 }

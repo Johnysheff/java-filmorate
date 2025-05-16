@@ -2,14 +2,19 @@ package ru.yandex.practicum.filmorate.storage.event;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.feed.Event;
 import ru.yandex.practicum.filmorate.model.feed.EventOperation;
 import ru.yandex.practicum.filmorate.model.feed.EventType;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
+import java.util.Objects;
 
 @Repository
 @RequiredArgsConstructor
@@ -18,7 +23,7 @@ public class EventDbStorage implements EventStorage {
 
     @Override
     public List<Event> getEventsByUserId(int userId) {
-        String sql = "SELECT * FROM events WHERE user_id = ? ORDER BY timestamp";
+        String sql = "SELECT * FROM events WHERE user_id = ? ORDER BY event_id ASC";
         return jdbcTemplate.query(sql, this::mapRowToEvent, userId);
     }
 
@@ -26,16 +31,19 @@ public class EventDbStorage implements EventStorage {
     public Event addEvent(Event event) {
         String sql = "INSERT INTO events (timestamp, user_id, event_type, operation, entity_id) " +
                      "VALUES (?, ?, ?, ?, ?)";
-        jdbcTemplate.update(sql,
-                event.getTimestamp(),
-                event.getUserId(),
-                event.getEventType().toString(),
-                event.getOperation().toString(),
-                event.getEntityId());
 
-        Integer eventId = jdbcTemplate.queryForObject("SELECT event_id FROM events ORDER BY event_id DESC LIMIT 1",
-                Integer.class);
-        event.setEventId(eventId);
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(connection -> {
+            PreparedStatement stmt = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+            stmt.setLong(1, event.getTimestamp());
+            stmt.setInt(2, event.getUserId());
+            stmt.setString(3, event.getEventType().toString());
+            stmt.setString(4, event.getOperation().toString());
+            stmt.setInt(5, event.getEntityId());
+            return stmt;
+        }, keyHolder);
+
+        event.setEventId(Objects.requireNonNull(keyHolder.getKey()).intValue());
         return event;
     }
 

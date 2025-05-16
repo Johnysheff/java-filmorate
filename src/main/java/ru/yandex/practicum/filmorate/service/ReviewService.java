@@ -45,7 +45,7 @@ public class ReviewService {
                 .operation(EventOperation.ADD)
                 .entityId(addedReview.getReviewId())
                 .build();
-        eventService.addEvent(event);
+        eventService.addReviewEvent(review.getUserId(), addedReview.getReviewId());
 
         return addedReview;
     }
@@ -70,7 +70,7 @@ public class ReviewService {
                 .operation(EventOperation.REMOVE)
                 .entityId(review.getReviewId())
                 .build();
-        eventService.addEvent(event);
+        eventService.removeReviewEvent(review.getUserId(), review.getReviewId());
     }
 
     public Review updateReview(Review review) {
@@ -83,7 +83,7 @@ public class ReviewService {
                 .operation(EventOperation.UPDATE)
                 .entityId(review.getReviewId())
                 .build();
-        eventService.addEvent(event);
+        eventService.updateReviewEvent(review.getUserId(), review.getReviewId());
 
         return updatedReview;
     }

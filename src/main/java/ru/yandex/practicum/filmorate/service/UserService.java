@@ -77,7 +77,7 @@ public class UserService {
                 .operation(EventOperation.ADD)
                 .entityId(friendId)
                 .build();
-        eventService.addEvent(event);
+        eventService.addFriendEvent(userId, friendId);
 
         log.info("Пользователь {} добавил в друзья пользователя {}", userId, friendId);
     }
@@ -100,7 +100,7 @@ public class UserService {
                 .operation(EventOperation.REMOVE)
                 .entityId(friendId)
                 .build();
-        eventService.addEvent(event);
+        eventService.removeFriendEvent(userId, friendId);
 
         log.info("Пользователь {} удалил из друзей пользователя {}", userId, friendId);
     }
