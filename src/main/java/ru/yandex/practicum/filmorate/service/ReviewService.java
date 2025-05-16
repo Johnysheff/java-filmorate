@@ -5,9 +5,6 @@ import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exception.NotFoundException;
 import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.Review;
-import ru.yandex.practicum.filmorate.model.feed.Event;
-import ru.yandex.practicum.filmorate.model.feed.EventOperation;
-import ru.yandex.practicum.filmorate.model.feed.EventType;
 import ru.yandex.practicum.filmorate.storage.film.FilmDbStorage;
 import ru.yandex.practicum.filmorate.storage.review.ReviewRepository;
 import ru.yandex.practicum.filmorate.storage.user.UserDbStorage;
@@ -38,13 +35,6 @@ public class ReviewService {
 
         Review addedReview = repository.addReview(review);
 
-        Event event = Event.builder()
-                .timestamp(System.currentTimeMillis())
-                .userId(review.getUserId())
-                .eventType(EventType.REVIEW)
-                .operation(EventOperation.ADD)
-                .entityId(addedReview.getReviewId())
-                .build();
         eventService.addReviewEvent(review.getUserId(), addedReview.getReviewId());
 
         return addedReview;
@@ -63,26 +53,12 @@ public class ReviewService {
             throw new NotFoundException("Отзыв с id: " + id + " не найден.");
         }
 
-        Event event = Event.builder()
-                .timestamp(System.currentTimeMillis())
-                .userId(review.getUserId())
-                .eventType(EventType.REVIEW)
-                .operation(EventOperation.REMOVE)
-                .entityId(review.getReviewId())
-                .build();
         eventService.removeReviewEvent(review.getUserId(), review.getReviewId());
     }
 
     public Review updateReview(Review review) {
         Review updatedReview = repository.updateReview(review);
 
-        Event event = Event.builder()
-                .timestamp(System.currentTimeMillis())
-                .userId(review.getUserId())
-                .eventType(EventType.REVIEW)
-                .operation(EventOperation.UPDATE)
-                .entityId(review.getReviewId())
-                .build();
         eventService.updateReviewEvent(review.getUserId(), review.getReviewId());
 
         return updatedReview;
@@ -104,6 +80,7 @@ public class ReviewService {
     public void addLike(int reviewId, int userId) {
         repository.addLike(reviewId, userId);
         repository.updateReviewUseful(reviewId);
+        eventService.addLikeEvent(userId, reviewId);
     }
 
     public void addDislike(int reviewId, int userId) {

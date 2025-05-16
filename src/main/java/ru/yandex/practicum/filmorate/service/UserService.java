@@ -70,13 +70,6 @@ public class UserService {
         }
         userStorage.addFriend(userId, friendId);
 
-        Event event = Event.builder()
-                .timestamp(System.currentTimeMillis())
-                .userId(userId)
-                .eventType(EventType.FRIEND)
-                .operation(EventOperation.ADD)
-                .entityId(friendId)
-                .build();
         eventService.addFriendEvent(userId, friendId);
 
         log.info("Пользователь {} добавил в друзья пользователя {}", userId, friendId);
@@ -93,13 +86,6 @@ public class UserService {
         }
         userStorage.removeFriend(userId, friendId);
 
-        Event event = Event.builder()
-                .timestamp(System.currentTimeMillis())
-                .userId(userId)
-                .eventType(EventType.FRIEND)
-                .operation(EventOperation.REMOVE)
-                .entityId(friendId)
-                .build();
         eventService.removeFriendEvent(userId, friendId);
 
         log.info("Пользователь {} удалил из друзей пользователя {}", userId, friendId);

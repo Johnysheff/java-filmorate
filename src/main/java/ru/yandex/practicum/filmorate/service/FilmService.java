@@ -105,21 +105,12 @@ public class FilmService {
         if (foundedUser.isEmpty()) {
             throw new NotFoundException("Пользователь не найден");
         }
-
+        eventService.addLikeEvent(userId, filmId);
         try {
             filmStorage.addLike(filmId, userId);
         } catch (DataIntegrityViolationException e) {
             return;
         }
-
-        Event event = Event.builder()
-                .timestamp(System.currentTimeMillis())
-                .userId(userId)
-                .eventType(EventType.LIKE)
-                .operation(EventOperation.ADD)
-                .entityId(filmId)
-                .build();
-        eventService.addLikeEvent(userId, filmId);
 
         log.info("Пользователь {} поставил лайк фильму {}", userId, filmId);
     }
@@ -135,13 +126,6 @@ public class FilmService {
         }
         filmStorage.removeLike(filmId, userId);
 
-        Event event = Event.builder()
-                .timestamp(System.currentTimeMillis())
-                .userId(userId)
-                .eventType(EventType.LIKE)
-                .operation(EventOperation.REMOVE)
-                .entityId(filmId)
-                .build();
         eventService.removeLikeEvent(userId, filmId);
 
         log.info("Пользователь {} удалил лайк у фильма {}", userId, filmId);
