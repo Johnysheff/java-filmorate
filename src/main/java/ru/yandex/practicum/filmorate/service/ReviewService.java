@@ -59,7 +59,6 @@ public class ReviewService {
     public void addLike(int reviewId, int userId) {
         repository.addLike(reviewId, userId);
         repository.updateReviewUseful(reviewId);
-        eventService.addLikeEvent(userId, reviewId);
     }
 
     public void addDislike(int reviewId, int userId) {
