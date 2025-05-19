@@ -26,7 +26,7 @@ public class ReviewRepository {
     public Review addReview(Review review) {
 
         String sql = "INSERT INTO reviews (content, is_positive, user_id, film_id) " +
-                "VALUES (?, ?, ?, ?)";
+                     "VALUES (?, ?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
         jdbc.update(connection -> {

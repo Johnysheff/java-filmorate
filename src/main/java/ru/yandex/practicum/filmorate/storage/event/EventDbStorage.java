@@ -1,14 +1,16 @@
 package ru.yandex.practicum.filmorate.storage.event;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Repository;
-
-import org.springframework.dao.EmptyResultDataAccessException;
 import ru.yandex.practicum.filmorate.model.feed.Event;
 
-import java.sql.*;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
 
 @Repository
