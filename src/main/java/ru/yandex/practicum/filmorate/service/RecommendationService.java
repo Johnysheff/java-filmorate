@@ -41,7 +41,7 @@ public class RecommendationService {
     private Map<Integer, Set<Integer>> findSimilarUsers(Integer userId, Set<Integer> userLikedFilms) {
         String inSql = String.join(",", Collections.nCopies(userLikedFilms.size(), "?"));
         String sql = String.format("""
-                SELECT user_id, film_id FROM film_likes 
+                SELECT user_id, film_id FROM film_likes
                 WHERE film_id IN (%s) AND user_id != ?
                 """, inSql);
 
