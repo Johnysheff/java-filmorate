@@ -138,7 +138,7 @@ public class FilmDbStorage implements FilmStorage {
 
         String inSql = String.join(",", Collections.nCopies(ids.size(), "?"));
         String sql = String.format("""
-                SELECT f.*, m.name AS mpa_name, m.description AS mpa_description 
+                SELECT f.*, m.name AS mpa_name, m.description AS mpa_description
                 FROM films f JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
                 WHERE f.film_id IN (%s)
                 """, inSql);
