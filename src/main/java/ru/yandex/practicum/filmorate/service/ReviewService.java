@@ -71,7 +71,7 @@ public class ReviewService {
         repository.updateReviewUseful(reviewId);
     }
 
-    public void validateUserId(Integer id) {
+    private void validateUserId(Integer id) {
         if (id == null) {
             throw new ValidationException("Id пользователя не может быть null.");
         }
@@ -79,7 +79,7 @@ public class ReviewService {
                 new NotFoundException("Пользователь с id=" + id + " не найден."));
     }
 
-    public void validateFilmId(Integer id) {
+    private void validateFilmId(Integer id) {
         if (id == null) {
             throw new ValidationException("Id фильма не может быть null.");
         }

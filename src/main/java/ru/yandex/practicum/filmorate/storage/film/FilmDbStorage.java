@@ -20,9 +20,6 @@ import java.util.stream.Collectors;
 @Repository
 public class FilmDbStorage implements FilmStorage {
     private final JdbcTemplate jdbcTemplate;
-    private final DirectorStorage directorStorage;
-    private final MpaStorage mpaStorage;
-    private final GenreStorage genreStorage;
 
     private static final String GET_FILM_IDS_BY_USER_ID_QUERY = "SELECT film_id FROM FILM_LIKES WHERE user_id = ?";
     private static final String GET_USER_IDS_BY_FILM_ID_QUERY = "SELECT user_id FROM FILM_LIKES WHERE film_id = ?";
@@ -30,9 +27,6 @@ public class FilmDbStorage implements FilmStorage {
 
     public FilmDbStorage(JdbcTemplate jdbcTemplate, DirectorStorage directorStorage, MpaStorage mpaStorage, GenreStorage genreStorage) {
         this.jdbcTemplate = jdbcTemplate;
-        this.directorStorage = directorStorage;
-        this.mpaStorage = mpaStorage;
-        this.genreStorage = genreStorage;
     }
 
     @Override
@@ -134,6 +128,41 @@ public class FilmDbStorage implements FilmStorage {
         } catch (Exception e) {
             return Optional.empty();
         }
+    }
+
+    @Override
+    public List<Film> getFilmsByIds(List<Integer> ids) {
+        if (ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        String inSql = String.join(",", Collections.nCopies(ids.size(), "?"));
+        String sql = String.format("""
+                SELECT f.*, m.name AS mpa_name, m.description AS mpa_description 
+                FROM films f JOIN mpa_ratings m ON f.mpa_id = m.mpa_id
+                WHERE f.film_id IN (%s)
+                """, inSql);
+
+        List<Film> films = jdbcTemplate.query(sql, (rs, rowNum) -> {
+            Film film = new Film(
+                    rs.getString("name"),
+                    rs.getString("description"),
+                    rs.getDate("release_date").toLocalDate(),
+                    rs.getInt("duration")
+            );
+            film.setId(rs.getInt("film_id"));
+            film.setMpa(new MpaRating(
+                    rs.getInt("mpa_id"),
+                    rs.getString("mpa_name"),
+                    rs.getString("mpa_description")
+            ));
+            return film;
+        }, ids.toArray());
+
+        loadGenresForFilms(films);
+        loadDirectorsForFilms(films);
+
+        return films;
     }
 
     @Override

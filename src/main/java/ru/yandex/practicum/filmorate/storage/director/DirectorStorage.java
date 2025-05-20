@@ -21,4 +21,6 @@ public interface DirectorStorage {
     void addDirectorsToFilm(int filmId, List<Director> directors);
 
     void deleteDirectorsFromFilm(int filmId);
+
+    List<Director> getDirectorsByIds(List<Integer> ids);
 }

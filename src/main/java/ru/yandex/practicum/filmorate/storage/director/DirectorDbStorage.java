@@ -38,6 +38,20 @@ public class DirectorDbStorage implements DirectorStorage {
     }
 
     @Override
+    public List<Director> getDirectorsByIds(List<Integer> ids) {
+        if (ids.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        String inSql = String.join(",", Collections.nCopies(ids.size(), "?"));
+        String sql = String.format("SELECT * FROM directors WHERE director_id IN (%s)", inSql);
+
+        return jdbcTemplate.query(sql, (rs, rowNum) ->
+                        new Director(rs.getInt("director_id"), rs.getString("name")),
+                ids.toArray());
+    }
+
+    @Override
     public Director addDirector(Director director) {
         String sql = "INSERT INTO directors (name) VALUES (?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();

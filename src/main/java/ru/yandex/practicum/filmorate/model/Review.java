@@ -13,13 +13,13 @@ public class Review {
     private int reviewId;
 
     @NotNull(message = "ID фильма обязателен")
-    Integer filmId;
+    private Integer filmId;
 
     @NotNull(message = "ID пользователя обязателен")
-    Integer userId;
+    private Integer userId;
 
     @NotBlank(message = "Отзыв не может быть пустым")
-    String content;
+    private String content;
 
     @NotNull(message = "Тип отзыва должен быть указан")
     private Boolean isPositive;

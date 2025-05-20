@@ -40,4 +40,7 @@ public interface FilmStorage {
     List<Film> searchFilmsByDirector(String query);
 
     List<Film> searchFilmsByTitleAndDirector(String title, String directorName);
+
+    List<Film> getFilmsByIds(List<Integer> ids);
+
 }

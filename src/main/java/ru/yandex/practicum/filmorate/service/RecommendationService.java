@@ -2,6 +2,7 @@ package ru.yandex.practicum.filmorate.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.storage.film.FilmDbStorage;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
 public class RecommendationService {
     private final FilmDbStorage filmRepository;
     private final UserDbStorage userStorage;
+    private final JdbcTemplate jdbcTemplate;
 
     public Collection<Film> getRecommendations(Integer userId) {
         log.info("Получение рекомендаций для пользователя {}", userId);
@@ -24,32 +26,35 @@ public class RecommendationService {
         log.debug("Пользователь {} лайкнул фильмы: {}", userId, userLikedFilms);
 
         if (userLikedFilms.isEmpty()) {
-            log.info("У пользователя {} нет лайков, рекомендации не найдены", userId);
             return Collections.emptyList();
         }
 
         Map<Integer, Set<Integer>> similarUsers = findSimilarUsers(userId, userLikedFilms);
-
         if (similarUsers.isEmpty()) {
-            log.info("Для пользователя {} не найдено похожих пользователей", userId);
             return Collections.emptyList();
         }
 
         Set<Integer> recommendedFilmIds = getRecommendedFilmIds(userLikedFilms, similarUsers);
-
         return convertToFilms(recommendedFilmIds);
     }
 
     private Map<Integer, Set<Integer>> findSimilarUsers(Integer userId, Set<Integer> userLikedFilms) {
+        String inSql = String.join(",", Collections.nCopies(userLikedFilms.size(), "?"));
+        String sql = String.format("""
+                SELECT user_id, film_id FROM film_likes 
+                WHERE film_id IN (%s) AND user_id != ?
+                """, inSql);
+
         Map<Integer, Set<Integer>> similarUsers = new HashMap<>();
-        for (Integer filmId : userLikedFilms) {
-            List<Integer> usersWhoLikedFilm = filmRepository.getUserIdsByFilmId(filmId);
-            for (Integer otherUserId : usersWhoLikedFilm) {
-                if (!otherUserId.equals(userId)) {
-                    similarUsers.computeIfAbsent(otherUserId, k -> new HashSet<>()).add(filmId);
-                }
-            }
-        }
+        List<Object> params = new ArrayList<>(userLikedFilms);
+        params.add(userId);
+
+        jdbcTemplate.query(sql, rs -> {
+            int otherUserId = rs.getInt("user_id");
+            int filmId = rs.getInt("film_id");
+            similarUsers.computeIfAbsent(otherUserId, k -> new HashSet<>()).add(filmId);
+        }, params.toArray());
+
         return similarUsers;
     }
 
@@ -72,12 +77,9 @@ public class RecommendationService {
     }
 
     private List<Film> convertToFilms(Set<Integer> filmIds) {
-        return filmIds.stream()
-                .map(filmId -> {
-                    Optional<Film> filmOpt = filmRepository.getFilmById(filmId);
-                    return filmOpt.orElse(null);
-                })
-                .filter(Objects::nonNull)
-                .collect(Collectors.toList());
+        if (filmIds.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return filmRepository.getFilmsByIds(new ArrayList<>(filmIds));
     }
 }

@@ -211,7 +211,6 @@ public class FilmService {
     }
 
     private void validateFilm(Film film) {
-
         if (film.getReleaseDate().isBefore(LocalDate.of(1895, 12, 28))) {
             throw new ValidationException("Дата релиза должна быть не раньше 28 декабря 1895 года.");
         }
@@ -238,13 +237,13 @@ public class FilmService {
         }
 
         if (!CollectionUtils.isEmpty(film.getDirectors())) {
-            Set<Integer> directorIds = film.getDirectors().stream()
+            List<Integer> directorIds = film.getDirectors().stream()
                     .map(Director::getId)
-                    .collect(Collectors.toSet());
+                    .toList();
 
-            for (Integer directorId : directorIds) {
-                directorStorage.getDirectorById(directorId)
-                        .orElseThrow(() -> new NotFoundException("Режиссёр с id " + directorId + " не найден"));
+            List<Director> existingDirectors = directorStorage.getDirectorsByIds(directorIds);
+            if (existingDirectors.size() != directorIds.size()) {
+                throw new NotFoundException("Некоторые режиссеры не найдены.");
             }
         }
     }
