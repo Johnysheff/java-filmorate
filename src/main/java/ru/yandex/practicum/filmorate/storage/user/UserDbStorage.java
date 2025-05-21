@@ -16,6 +16,10 @@ import java.util.*;
 public class UserDbStorage implements UserStorage {
     private final JdbcTemplate jdbcTemplate;
 
+    private static final String DELETE_USER_QUERY = """
+            DELETE FROM USERS
+            WHERE user_id = ?
+            """;
 
     public UserDbStorage(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
@@ -23,6 +27,9 @@ public class UserDbStorage implements UserStorage {
 
     @Override
     public User addUser(User user) {
+        if (user.getName() == null || user.getName().isBlank()) {
+            user.setName(user.getLogin());
+        }
         String sql = "INSERT INTO users (email, login, name, birthday) VALUES (?, ?, ?, ?)";
         KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -66,9 +73,20 @@ public class UserDbStorage implements UserStorage {
     }
 
     @Override
+    public void deleteUser(User user) {
+        jdbcTemplate.update(DELETE_USER_QUERY, user.getId());
+    }
+
+    @Override
     public List<User> getAllUsers() {
         String sql = """
-                SELECT u.user_id as user_id, u.name, f.friend_id
+                    SELECT
+                    u.user_id as user_id,
+                    u.email,
+                    u.login,
+                    u.name,
+                    u.birthday,
+                    f.friend_id
                 FROM users u
                 LEFT JOIN friendships f ON u.user_id = f.user_id
                 """;
@@ -82,7 +100,10 @@ public class UserDbStorage implements UserStorage {
                 User newUser = new User();
                 newUser.setId(id);
                 try {
+                    newUser.setEmail(rs.getString("email"));
+                    newUser.setLogin(rs.getString("login"));
                     newUser.setName(rs.getString("name"));
+                    newUser.setBirthday(rs.getDate("birthday").toLocalDate());
                 } catch (SQLException e) {
                     throw new RuntimeException(e);
                 }
@@ -120,9 +141,9 @@ public class UserDbStorage implements UserStorage {
     @Override
     public List<User> getCommonFriends(int userId, int otherId) {
         String sql = "SELECT u.* FROM users u " +
-                "JOIN friendships f1 ON u.user_id = f1.friend_id " +
-                "JOIN friendships f2 ON u.user_id = f2.friend_id " +
-                "WHERE f1.user_id = ? AND f2.user_id = ?";
+                     "JOIN friendships f1 ON u.user_id = f1.friend_id " +
+                     "JOIN friendships f2 ON u.user_id = f2.friend_id " +
+                     "WHERE f1.user_id = ? AND f2.user_id = ?";
         return jdbcTemplate.query(sql, this::mapRowToUser, userId, otherId);
     }
 

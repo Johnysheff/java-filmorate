@@ -1,12 +1,17 @@
 package ru.yandex.practicum.filmorate.model;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.time.LocalDate;
 import java.util.List;
 
 @Data
+@AllArgsConstructor
 public class Film {
     private int id;
 
@@ -16,7 +21,6 @@ public class Film {
     @Size(max = 200, message = "Описание фильма не может превышать 200 символов.")
     private String description;
 
-    @PastOrPresent
     @NotNull(message = "Дата релиза должна быть указана.")
     private LocalDate releaseDate;
 
@@ -25,6 +29,7 @@ public class Film {
 
     private MpaRating mpa;
     private List<Genre> genres;
+    private List<Director> directors;
 
     public Film(String name, String description, LocalDate releaseDate, int duration) {
         this.name = name;
